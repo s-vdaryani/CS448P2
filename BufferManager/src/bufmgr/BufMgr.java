@@ -39,7 +39,7 @@ public class BufMgr implements GlobalConst{
    * before reading new page.  (You can assume that emptyPage==false for
    * this assignment.)
    *
-   * @param Page_Id_in_a_DB page number in the minibase.
+   * @param pin_pgid page number in the minibase.
    * @param page the pointer poit to the page.
    * @param emptyPage true (empty page); false (non-empty page)
    */
@@ -59,7 +59,7 @@ public class BufMgr implements GlobalConst{
    * to report error.  (For testing purposes, we ask you to throw
    * an exception named PageUnpinnedException in case of error.)
    *
-   * @param globalPageId_in_a_DB page number in the minibase.
+   * @param PageId_in_a_DB page number in the minibase.
    * @param dirty the dirty bit of the frame
    */
 
@@ -84,8 +84,9 @@ public class BufMgr implements GlobalConst{
    */
 
   public PageId newPage(Page firstpage, int howmany) {
-
-      //YOUR CODE HERE  
+      //YOUR CODE HERE
+    PageId returnedPage = new PageId();
+    return returnedPage;
   }
 
 
@@ -131,8 +132,8 @@ public class BufMgr implements GlobalConst{
    */
 
   public int getNumBuffers() {
-
       //YOUR CODE HERE
+    return 0;
   }
 
 
@@ -143,6 +144,7 @@ public class BufMgr implements GlobalConst{
 
   public int getNumUnpinnedBuffers() {
     //YOUR CODE HERE
+    return 0;
   }
 
 }
