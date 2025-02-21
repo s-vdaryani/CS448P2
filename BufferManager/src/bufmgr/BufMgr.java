@@ -4,6 +4,9 @@ package bufmgr;
 
 import java.io.*;
 import java.util.*;
+
+import chainexception.ChainException;
+import com.sun.net.httpserver.Filter;
 import diskmgr.*;
 import global.*;
 
@@ -83,7 +86,7 @@ public class BufMgr implements GlobalConst{
    * @param emptyPage true (empty page); false (non-empty page)
    */
 
-  public void pinPage(PageId pin_pgid, Page page, boolean emptyPage) {
+  public void pinPage(PageId pin_pgid, Page page, boolean emptyPage) throws ChainException {
     //YOUR CODE HERE
 
   }
@@ -102,7 +105,7 @@ public class BufMgr implements GlobalConst{
    * @param dirty the dirty bit of the frame
    */
 
-  public void unpinPage(PageId PageId_in_a_DB, boolean dirty) {
+  public void unpinPage(PageId PageId_in_a_DB, boolean dirty) throws ChainException {
       //YOUR CODE HERE
   }
 
@@ -123,7 +126,7 @@ public class BufMgr implements GlobalConst{
    */
 
   public PageId newPage(Page firstpage, int howmany) {
-      //YOUR CODE HERE
+    // Haley
     PageId returnedPage = new PageId();
     return returnedPage;
   }
@@ -137,9 +140,8 @@ public class BufMgr implements GlobalConst{
    * @param globalPageId the page number in the data base.
    */
 
-  public void freePage(PageId globalPageId) {
-      //YOUR CODE HERE
-
+  public void freePage(PageId globalPageId) throws ChainException {
+      // Haley
   }
 
 
@@ -172,7 +174,7 @@ public class BufMgr implements GlobalConst{
 
   public int getNumBuffers() {
       //YOUR CODE HERE
-    return 0;
+      return 0;
   }
 
 
@@ -182,7 +184,7 @@ public class BufMgr implements GlobalConst{
    */
 
   public int getNumUnpinnedBuffers() {
-    //YOUR CODE HERE
+    // Haley
     return 0;
   }
 
