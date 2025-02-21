@@ -155,6 +155,7 @@ public class BufMgr implements GlobalConst{
   public void flushPage(PageId pageid) {
 
       //YOUR CODE HERE
+      //Vani
 
   }
 
@@ -164,6 +165,7 @@ public class BufMgr implements GlobalConst{
   public void flushAllPages() {
 
       //YOUR CODE HERE
+      //Vani
   }
 
 
@@ -173,8 +175,7 @@ public class BufMgr implements GlobalConst{
    */
 
   public int getNumBuffers() {
-      //YOUR CODE HERE
-      return 0;
+      return numBuffers;
   }
 
 
