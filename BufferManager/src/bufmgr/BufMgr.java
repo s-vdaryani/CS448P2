@@ -22,6 +22,17 @@ public class BufMgr implements GlobalConst{
   public BufMgr(int numbufs, String replacerArg) {
 
     //YOUR CODE HERE
+      this.numBuffers = numbufs;
+      bufPool = new Page[numbufs];
+      frameTable = new FrameDesc[numbufs];
+      pageTable = new HashMap<>();
+      fifoQueue = new LinkedList<>();
+
+      // Initialize frames
+      for (int i = 0; i < numbufs; i++) {
+          bufPool[i] = new Page();
+          frameTable[i] = new FrameDesc();
+      }
 
   }
 
