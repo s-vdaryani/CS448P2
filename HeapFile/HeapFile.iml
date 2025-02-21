@@ -8,5 +8,7 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="heapAssign" level="project" />
+    <orderEntry type="library" name="bufmgrAssign" level="project" />
+    <orderEntry type="module" module-name="BufferManager" />
   </component>
 </module>
