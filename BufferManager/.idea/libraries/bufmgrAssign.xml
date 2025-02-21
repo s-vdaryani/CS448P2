@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="bufmgrAssign">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/bufmgrAssign.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
