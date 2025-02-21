@@ -8,6 +8,34 @@ import diskmgr.*;
 import global.*;
 
 public class BufMgr implements GlobalConst{
+  
+    // Buffer pool (array of Page objects stored in memory)
+    private Page[] bufPool;
+
+    // Frame Table - stores metadata about each frame
+    private FrameDesc[] frameTable;
+
+    // HashMap to track which page is in which frame (PageId → Frame index)
+    private HashMap<Integer, Integer> pageTable;
+
+    // Queue for FIFO (First-In-First-Out) page replacement
+    private Queue<Integer> fifoQueue;
+
+    // Number of buffers (frames)
+    private int numBuffers;
+
+    // Frame Descriptor class - stores metadata about each frame
+    private static class FrameDesc {
+      int pageNumber;  // Page ID stored in this frame (-1 if empty)
+      int pinCount;    // How many times the page is pinned
+      boolean dirty;   // Whether the page has been modified
+
+      public FrameDesc() {
+        this.pageNumber = -1;  // -1 means "empty frame"
+        this.pinCount = 0;
+        this.dirty = false;
+      }
+    }
 
   /**
    * Create the BufMgr object.
