@@ -125,10 +125,25 @@ public class BufMgr implements GlobalConst{
    * @return the first page id of the new pages.  null, if error.
    */
 
-  public PageId newPage(Page firstpage, int howmany) {
+  public PageId newPage(Page firstpage, int howmany) throws BufferPoolExceededException {
     // Haley
-    PageId returnedPage = new PageId();
-    return returnedPage;
+    PageId newPageID = new PageId();
+    DB diskMgr = new DB();
+    try {
+        pinPage(newPageID, firstpage, false);
+    }
+    catch (ChainException e) {
+        throw new BufferPoolExceededException(e, "called pinPage() in newPage()?");
+    }
+
+    try {
+        diskMgr.allocate_page(newPageID);
+    }
+    catch (Exception e) {
+        // throw something here?
+        e.printStackTrace();
+    }
+    return newPageID;
   }
 
 
@@ -137,11 +152,19 @@ public class BufMgr implements GlobalConst{
    * This routine must call the method in diskmgr package to
    * deallocate the page.
    *
-   * @param globalPageId the page number in the data base.
+   * @param globalPageId the page number in the database.
    */
 
   public void freePage(PageId globalPageId) throws ChainException {
       // Haley
+      DB diskMgr = new DB();
+      try {
+          diskMgr.deallocate_page(globalPageId);
+      }
+      catch (Exception e) {
+          // throw something here?
+          e.printStackTrace();
+      }
   }
 
 
