@@ -139,8 +139,8 @@ public class BufMgr implements GlobalConst{
    */
 
     public void pinPage(PageId pin_pgid, Page page, boolean emptyPage) throws ChainException{
-        System.out.println("START START");
-        int pagenum = pin_pgid.pid; 
+        System.out.println("Pinning page...");
+        int pagenum = pin_pgid.pid;
 
         if (pageTable.containsKey(pagenum)) {
             int frameIndex = pageTable.get(pagenum);  
@@ -154,19 +154,26 @@ public class BufMgr implements GlobalConst{
 
             page.setpage(bufPool[frameIndex].getpage());
 
+            System.out.println("Page is already in memory, so we're done.");
             return;  
         }
-        System.out.println("Page is already in memory, so we're done.");
-        int chosenFrame = findAvailableFrame();
 
-        // if (chosenFrame == -1) {
-            // throw new RuntimeException("Buffer pool is full, no free frame available.");
-        //}
-        System.out.println("Trrying #1");
-        if (frameTable[chosenFrame].pageNumber != -1) {
+        int chosenFrame = findAvailableFrame();
+        System.out.println("chosenFrame: " + chosenFrame);
+
+        if (chosenFrame == -1) {
+            //throw new RuntimeException("Buffer pool is full, no free frame available.");
+            // TODO: fix error handling here
+            System.out.println("Buffer pool is full, no free frame available.");
+            return;
+        }
+        //System.out.println("Trrying #1");
+        else if (frameTable[chosenFrame].pageNumber != -1) {
+            // page number of -1 means
+            System.out.println("entered here!!");
             if (frameTable[chosenFrame].dirty) {
                 try {
-                    db.write_page(new PageId(frameTable[chosenFrame].pageNumber), bufPool[chosenFrame]);
+                    SystemDefs.JavabaseDB.write_page(new PageId(frameTable[chosenFrame].pageNumber), bufPool[chosenFrame]);
                 } catch (IOException | InvalidPageNumberException e) {
                     throw new ChainException(e, "BufMgr: Error writing page to disk");
                 }
@@ -175,25 +182,31 @@ public class BufMgr implements GlobalConst{
             pageTable.remove(frameTable[chosenFrame].pageNumber);
             System.out.println("removed");
         }
+        //else {
+            //return;
+        //}
 
         frameTable[chosenFrame].pageNumber = pagenum;
         System.out.println("Nice");
-        //try {
-            //db.openDB("dbname.db", 100);  // Open database
-        //} catch (IOException e) {
-            //throw new RuntimeException(e);
-        //}
+        /*try {
+            db.openDB("dbname.db", 100);  // Open DB
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }*/
 
         try {
-            db.read_page(pin_pgid, bufPool[chosenFrame]);
+            //System.out.println(pin_pgid);
+            SystemDefs.JavabaseDB.read_page(pin_pgid, bufPool[chosenFrame]);
         } catch (IOException | InvalidPageNumberException | FileIOException e) { 
             throw new ChainException(e, "BufMgr: Error reading page from disk");
         }
 
+        //frameTable[chosenFrame].pageNumber = pagenum;
         frameTable[chosenFrame].pinCount = 1;  // The page is now pinned.
         frameTable[chosenFrame].dirty = false;  // Newly loaded pages are clean.
 
         pageTable.put(pagenum, chosenFrame);
+        //System.out.println(fifoQueue);
 
         page.setpage(bufPool[chosenFrame].getpage());
 
@@ -203,6 +216,7 @@ public class BufMgr implements GlobalConst{
         // checking for an empty frame
         for (int i = 0; i < numBuffers; i++) {
             if (frameTable[i].pageNumber == -1) {
+                fifoQueue.add(i);
                 return i; //index of empty page
             }
         }
@@ -257,25 +271,21 @@ public class BufMgr implements GlobalConst{
    * @return the first page id of the new pages.  null, if error.
    */
 
-  public PageId newPage(Page firstpage, int howmany) throws BufferPoolExceededException {
+  public PageId newPage(Page firstpage, int howmany) throws ChainException {
     // Haley
     PageId newPageID = new PageId();
-    DB diskMgr = new DB();
-    try {
-        pinPage(newPageID, firstpage, false);
-    }
-    catch (ChainException e) {
-        throw new BufferPoolExceededException(e, "called pinPage() in newPage()?");
-    }
 
     try {
-        diskMgr.allocate_page(newPageID);
+        SystemDefs.JavabaseDB.allocate_page(newPageID, howmany);
+        System.out.println("Allocated " + howmany + " new page(s) starting at PageId: " + newPageID.pid);
+        pinPage(newPageID, firstpage, false);
+        return newPageID;
     }
     catch (Exception e) {
-        // throw something here?
+        // TODO: FIX ERROR PROTOCOL HERE
         e.printStackTrace();
+        throw new ChainException(e, "error in newPage");
     }
-    return newPageID;
   }
 
 
@@ -289,9 +299,8 @@ public class BufMgr implements GlobalConst{
 
   public void freePage(PageId globalPageId) throws ChainException {
       // Haley
-      DB diskMgr = new DB();
       try {
-          diskMgr.deallocate_page(globalPageId);
+          SystemDefs.JavabaseDB.deallocate_page(globalPageId);
       }
       catch (Exception e) {
           // throw something here?
