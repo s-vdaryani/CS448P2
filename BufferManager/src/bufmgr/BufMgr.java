@@ -366,8 +366,15 @@ public class BufMgr implements GlobalConst{
    */
 
   public int getNumUnpinnedBuffers() {
-    // Haley
-    return 0;
+      // Haley
+      int count = 0; // Initialize a counter to track unpinned frames
+      for (FrameDesc frame : frameTable) {
+          if (frame != null && frame.pinCount == 0) { // Check if the frame exists and is unpinned
+              count++;
+          }
+      }
+      System.out.printf("%d unpinned buffers!!\n", count);
+      return count; // Return the total count of unpinned frames
   }
 
 }
