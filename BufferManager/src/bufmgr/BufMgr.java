@@ -147,9 +147,9 @@ public class BufMgr implements GlobalConst{
         System.out.println("Pinning page...");
         int pagenum = pin_pgid.pid;
 
-        if (pageTable.containsKey(pagenum)) {
-            int frameIndex = pageTable.get(pagenum);  
-            FrameDesc fd = frameTable[frameIndex];  
+        if (pageTable.get(pagenum) != null) {
+            int frameIndex = pageTable.get(pagenum);
+            FrameDesc fd = frameTable[frameIndex];
 
             if (fd.pinCount == 0) {
                 fifoQueue.remove(frameIndex);
@@ -160,7 +160,7 @@ public class BufMgr implements GlobalConst{
             page.setpage(bufPool[frameIndex].getpage());
 
             System.out.println("Page is already in memory, so we're done.");
-            return;  
+            return;
         }
 
         int chosenFrame = findAvailableFrame();
@@ -184,11 +184,11 @@ public class BufMgr implements GlobalConst{
                 }
 
             }
-            pageTable.remove(frameTable[chosenFrame].pageNumber);
+            pageTable.delete(frameTable[chosenFrame].pageNumber);
             System.out.println("removed");
         }
         //else {
-            //return;
+        //return;
         //}
 
         frameTable[chosenFrame].pageNumber = pagenum;
@@ -202,7 +202,7 @@ public class BufMgr implements GlobalConst{
         try {
             //System.out.println(pin_pgid);
             SystemDefs.JavabaseDB.read_page(pin_pgid, bufPool[chosenFrame]);
-        } catch (IOException | InvalidPageNumberException | FileIOException e) { 
+        } catch (IOException | InvalidPageNumberException | FileIOException e) {
             throw new ChainException(e, "BufMgr: Error reading page from disk");
         }
 
@@ -210,7 +210,7 @@ public class BufMgr implements GlobalConst{
         frameTable[chosenFrame].pinCount = 1;  // The page is now pinned.
         frameTable[chosenFrame].dirty = false;  // Newly loaded pages are clean.
 
-        pageTable.put(pagenum, chosenFrame);
+        pageTable.insert(pagenum, chosenFrame);
         //System.out.println(fifoQueue);
 
         page.setpage(bufPool[chosenFrame].getpage());
