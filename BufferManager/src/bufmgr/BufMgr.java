@@ -30,6 +30,8 @@ public class BufMgr implements GlobalConst{
     private int numBuffers;
   
     private DB db;
+    private CustomHashTable pageTable;
+
 
 
     // Frame Descriptor class - stores metadata about each frame
@@ -106,7 +108,7 @@ public class BufMgr implements GlobalConst{
   public BufMgr(int numbufs, String replacerArg) {
     //YOUR CODE HERE
     this.numBuffers = numbufs;
-    this.db = new DB();
+    pageTable = new CustomHashTable();
     bufPool = new Page[numbufs];
     frameTable = new FrameDesc[numbufs];
     pageTable = new HashMap<>();
@@ -138,13 +140,13 @@ public class BufMgr implements GlobalConst{
    * @param emptyPage true (empty page); false (non-empty page)
    */
 
-    public void pinPage(PageId pin_pgid, Page page, boolean emptyPage) throws ChainException{
+   public void pinPage(PageId pin_pgid, Page page, boolean emptyPage) throws ChainException{
         System.out.println("Pinning page...");
         int pagenum = pin_pgid.pid;
 
-        if (pageTable.containsKey(pagenum)) {
-            int frameIndex = pageTable.get(pagenum);  
-            FrameDesc fd = frameTable[frameIndex];  
+        if (pageTable.get(pagenum) != null) {
+            int frameIndex = pageTable.get(pagenum);
+            FrameDesc fd = frameTable[frameIndex];
 
             if (fd.pinCount == 0) {
                 fifoQueue.remove(frameIndex);
@@ -155,7 +157,7 @@ public class BufMgr implements GlobalConst{
             page.setpage(bufPool[frameIndex].getpage());
 
             System.out.println("Page is already in memory, so we're done.");
-            return;  
+            return;
         }
 
         int chosenFrame = findAvailableFrame();
@@ -179,11 +181,11 @@ public class BufMgr implements GlobalConst{
                 }
 
             }
-            pageTable.remove(frameTable[chosenFrame].pageNumber);
+            pageTable.delete(frameTable[chosenFrame].pageNumber);
             System.out.println("removed");
         }
         //else {
-            //return;
+        //return;
         //}
 
         frameTable[chosenFrame].pageNumber = pagenum;
@@ -197,7 +199,7 @@ public class BufMgr implements GlobalConst{
         try {
             //System.out.println(pin_pgid);
             SystemDefs.JavabaseDB.read_page(pin_pgid, bufPool[chosenFrame]);
-        } catch (IOException | InvalidPageNumberException | FileIOException e) { 
+        } catch (IOException | InvalidPageNumberException | FileIOException e) {
             throw new ChainException(e, "BufMgr: Error reading page from disk");
         }
 
@@ -205,7 +207,7 @@ public class BufMgr implements GlobalConst{
         frameTable[chosenFrame].pinCount = 1;  // The page is now pinned.
         frameTable[chosenFrame].dirty = false;  // Newly loaded pages are clean.
 
-        pageTable.put(pagenum, chosenFrame);
+        pageTable.insert(pagenum, chosenFrame);
         //System.out.println(fifoQueue);
 
         page.setpage(bufPool[chosenFrame].getpage());
@@ -251,9 +253,34 @@ public class BufMgr implements GlobalConst{
      * @param PageId_in_a_DB page number in the minibase.
      * @param dirty the dirty bit of the frame
      */
-  public void unpinPage(PageId PageId_in_a_DB, boolean dirty) throws ChainException {
-      //YOUR CODE HERE
-  }
+  public void unpinPage(PageId pageno, boolean dirty)
+            throws PageUnpinnedException, HashEntryNotFoundException {
+        int pagenum = pageno.pid;
+
+        // check if page exists in the buffer pool
+        if (pageTable.get(pagenum) == null) {
+            throw new HashEntryNotFoundException(null, "BUFMGR: Page not found in buffer pool.");
+        }
+
+        // get the frame index
+        int frameIndex = pageTable.get(pagenum);
+        FrameDesc fd = frameTable[frameIndex];
+
+        if (fd.pinCount == 0) {
+            throw new PageUnpinnedException(null, "BUFMGR: Cannot unpin a page that is not pinned.");
+        }
+
+        fd.pinCount--;
+
+        if (dirty) {
+            fd.dirty = true;
+        }
+
+        // if the page is now completely unpinned, add it back to the FIFO queue
+        if (fd.pinCount == 0) {
+            fifoQueue.add(frameIndex);
+        }
+    }
 
 
   /**
