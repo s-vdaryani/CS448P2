@@ -53,6 +53,7 @@ public class BufMgr implements GlobalConst{
   public BufMgr(int numbufs, String replacerArg) {
     //YOUR CODE HERE
     this.numBuffers = numbufs;
+    this.db = new DB();
     bufPool = new Page[numbufs];
     frameTable = new FrameDesc[numbufs];
     pageTable = new HashMap<>();
@@ -84,10 +85,66 @@ public class BufMgr implements GlobalConst{
    * @param emptyPage true (empty page); false (non-empty page)
    */
 
-  public void pinPage(PageId pin_pgid, Page page, boolean emptyPage) throws ChainException {
-    //YOUR CODE HERE
+    public void pinPage(PageId pin_pgid, Page page, boolean emptyPage) throws ChainException{
+        System.out.println("START START");
+        int pagenum = pin_pgid.pid; 
 
-  }
+        if (pageTable.containsKey(pagenum)) {
+            int frameIndex = pageTable.get(pagenum);  
+            FrameDesc fd = frameTable[frameIndex];  
+
+            if (fd.pinCount == 0) {
+                fifoQueue.remove(frameIndex);
+            }
+
+            fd.pinCount++;
+
+            page.setpage(bufPool[frameIndex].getpage());
+
+            return;  
+        }
+        System.out.println("Page is already in memory, so we're done.");
+        int chosenFrame = findAvailableFrame();
+
+        // if (chosenFrame == -1) {
+            // throw new RuntimeException("Buffer pool is full, no free frame available.");
+        //}
+        System.out.println("Trrying #1");
+        if (frameTable[chosenFrame].pageNumber != -1) {
+            if (frameTable[chosenFrame].dirty) {
+                try {
+                    db.write_page(new PageId(frameTable[chosenFrame].pageNumber), bufPool[chosenFrame]);
+                } catch (IOException | InvalidPageNumberException e) {
+                    throw new ChainException(e, "BufMgr: Error writing page to disk");
+                }
+
+            }
+            pageTable.remove(frameTable[chosenFrame].pageNumber);
+            System.out.println("removed");
+        }
+
+        frameTable[chosenFrame].pageNumber = pagenum;
+        System.out.println("Nice");
+        //try {
+            //db.openDB("dbname.db", 100);  // Open database
+        //} catch (IOException e) {
+            //throw new RuntimeException(e);
+        //}
+
+        try {
+            db.read_page(pin_pgid, bufPool[chosenFrame]);
+        } catch (IOException | InvalidPageNumberException | FileIOException e) { 
+            throw new ChainException(e, "BufMgr: Error reading page from disk");
+        }
+
+        frameTable[chosenFrame].pinCount = 1;  // The page is now pinned.
+        frameTable[chosenFrame].dirty = false;  // Newly loaded pages are clean.
+
+        pageTable.put(pagenum, chosenFrame);
+
+        page.setpage(bufPool[chosenFrame].getpage());
+
+    }
 
 
   /**
