@@ -26,6 +26,9 @@ public class BufMgr implements GlobalConst{
 
     // Number of buffers (frames)
     private int numBuffers;
+  
+    private DB db;
+
 
     // Frame Descriptor class - stores metadata about each frame
     private static class FrameDesc {
