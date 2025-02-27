@@ -21,7 +21,6 @@ public class BufMgr implements GlobalConst{
     // HashMap to track which page is in which frame (PageId → Frame index)
     // TODO: switch to CustomHashTable instead of built-in HashMap
     //private CustomHashTable pageTable;
-    private HashMap<Integer, Integer> pageTable;
 
     // Queue for FIFO (First-In-First-Out) page replacement
     private Queue<Integer> fifoQueue;
@@ -111,7 +110,6 @@ public class BufMgr implements GlobalConst{
     pageTable = new CustomHashTable();
     bufPool = new Page[numbufs];
     frameTable = new FrameDesc[numbufs];
-    pageTable = new HashMap<>();
     fifoQueue = new LinkedList<>();
 
     // Initialize frames
