@@ -103,6 +103,32 @@ public class BufMgr implements GlobalConst{
    * @param dirty the dirty bit of the frame
    */
 
+    private int findAvailableFrame() {
+        // checking for an empty frame
+        for (int i = 0; i < numBuffers; i++) {
+            if (frameTable[i].pageNumber == -1) {
+                return i; //index of empty page
+            }
+        }
+
+        // if no available frame
+        int size = fifoQueue.size();
+        while (size > 0) {
+            int frame = fifoQueue.poll(); //getting oldest frame for fifo
+
+            // frame should be unpinned before replacement
+            if (frameTable[frame].pinCount == 0) {
+                return frame;
+            }
+
+            
+            fifoQueue.add(frame);
+            size--;
+        }
+
+        return -1; // no frame available
+    }
+  
   public void unpinPage(PageId PageId_in_a_DB, boolean dirty) throws ChainException {
       //YOUR CODE HERE
   }
