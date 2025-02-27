@@ -51,20 +51,18 @@ public class BufMgr implements GlobalConst{
    */
 
   public BufMgr(int numbufs, String replacerArg) {
-
     //YOUR CODE HERE
-      this.numBuffers = numbufs;
-      bufPool = new Page[numbufs];
-      frameTable = new FrameDesc[numbufs];
-      pageTable = new HashMap<>();
-      fifoQueue = new LinkedList<>();
+    this.numBuffers = numbufs;
+    bufPool = new Page[numbufs];
+    frameTable = new FrameDesc[numbufs];
+    pageTable = new HashMap<>();
+    fifoQueue = new LinkedList<>();
 
-      // Initialize frames
-      for (int i = 0; i < numbufs; i++) {
-          bufPool[i] = new Page();
-          frameTable[i] = new FrameDesc();
-      }
-
+    // Initialize frames
+    for (int i = 0; i < numbufs; i++) {
+        bufPool[i] = new Page();
+        frameTable[i] = new FrameDesc();
+    }
   }
 
 
@@ -105,6 +103,32 @@ public class BufMgr implements GlobalConst{
    * @param dirty the dirty bit of the frame
    */
 
+    private int findAvailableFrame() {
+        // checking for an empty frame
+        for (int i = 0; i < numBuffers; i++) {
+            if (frameTable[i].pageNumber == -1) {
+                return i; //index of empty page
+            }
+        }
+
+        // if no available frame
+        int size = fifoQueue.size();
+        while (size > 0) {
+            int frame = fifoQueue.poll(); //getting oldest frame for fifo
+
+            // frame should be unpinned before replacement
+            if (frameTable[frame].pinCount == 0) {
+                return frame;
+            }
+
+            
+            fifoQueue.add(frame);
+            size--;
+        }
+
+        return -1; // no frame available
+    }
+  
   public void unpinPage(PageId PageId_in_a_DB, boolean dirty) throws ChainException {
       //YOUR CODE HERE
   }
@@ -175,18 +199,37 @@ public class BufMgr implements GlobalConst{
    * @param pageid the page number in the database.
    */
 
-  public void flushPage(PageId pageid) {
-
-      //YOUR CODE HERE
-
+   public void flushPage(PageId pageid) {
+    if (!pageTable.containsKey(pageid.pid)) {
+        return;
+    }
+    int frameIndex = pageTable.get(pageid.pid);
+    if (frameTable[frameIndex].dirty) {
+        try {
+            SystemDefs.JavabaseDB.write_page(pageid, bufPool[frameIndex]);
+            frameTable[frameIndex].dirty = false;
+        } catch (InvalidPageNumberException | FileIOException | IOException e) {
+            System.err.println("Error writing page " + pageid.pid + " to disk: " + e.getMessage());
+        }
+    }
   }
+
 
   /** Flushes all pages of the buffer pool to disk
    */
 
-  public void flushAllPages() {
-
-      //YOUR CODE HERE
+   public void flushAllPages() {
+    for (int i = 0; i < numBuffers; i++) {
+      if (frameTable[i].dirty) {
+          try {
+              PageId pid = new PageId(frameTable[i].pageNumber);  // ✅ Create a valid PageId
+              SystemDefs.JavabaseDB.write_page(pid, bufPool[i]);  // ✅ Use correct PageId format
+              frameTable[i].dirty = false;
+          } catch (InvalidPageNumberException | FileIOException | IOException e) {
+              System.err.println("Error flushing page " + frameTable[i].pageNumber + " to disk: " + e.getMessage());
+          }
+      }
+    }
   }
 
 
@@ -196,8 +239,7 @@ public class BufMgr implements GlobalConst{
    */
 
   public int getNumBuffers() {
-      //YOUR CODE HERE
-      return 0;
+      return numBuffers;
   }
 
 
