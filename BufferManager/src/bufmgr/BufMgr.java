@@ -19,6 +19,8 @@ public class BufMgr implements GlobalConst{
     private FrameDesc[] frameTable;
 
     // HashMap to track which page is in which frame (PageId → Frame index)
+    // TODO: switch to CustomHashTable instead of built-in HashMap
+    //private CustomHashTable pageTable;
     private HashMap<Integer, Integer> pageTable;
 
     // Queue for FIFO (First-In-First-Out) page replacement
@@ -41,6 +43,54 @@ public class BufMgr implements GlobalConst{
         this.pinCount = 0;
         this.dirty = false;
       }
+    }
+
+    private static class CustomHashTable {
+        private static final int HTSIZE = 97; // Number of buckets, size of hash table, TODO: change this value?
+        private LinkedList<HashEntry>[] directory;
+
+        // Hash table entry
+        private static class HashEntry {
+            int pageNumber;
+            int frameNumber;
+
+            public HashEntry(int pageNumber, int frameNumber) {
+                this.pageNumber = pageNumber;
+                this.frameNumber = frameNumber;
+            }
+        }
+
+        public CustomHashTable() {
+            directory = new LinkedList[HTSIZE];
+            for (int i = 0; i < HTSIZE; i++) {
+                directory[i] = new LinkedList<>();
+            }
+        }
+
+        private int hash(int pageNumber) {
+            int a = 31, b = 17; // TODO: may need to change these?
+            return Math.abs((a * pageNumber + b) % HTSIZE);
+        }
+
+        public void insert(int pageNumber, int frameNumber) {
+            int hashIndex = hash(pageNumber);
+            directory[hashIndex].add(new HashEntry(pageNumber, frameNumber));
+        }
+
+        public void delete(int pageNumber) {
+            int hashIndex = hash(pageNumber);
+            directory[hashIndex].removeIf(entry -> entry.pageNumber == pageNumber);
+        }
+
+        public Integer get(int pageNumber) {
+            int hashIndex = hash(pageNumber);
+            for (HashEntry entry : directory[hashIndex]) {
+                if (entry.pageNumber == pageNumber) {
+                    return entry.frameNumber;
+                }
+            }
+            return null; // return null if page not found
+        }
     }
 
   /**
@@ -149,20 +199,6 @@ public class BufMgr implements GlobalConst{
 
     }
 
-
-  /**
-   * Unpin a page specified by a pageId.
-   * This method should be called with dirty==true if the client has
-   * modified the page.  If so, this call should set the dirty bit
-   * for this frame.  Further, if pin_count>0, this method should
-   * decrement it. If pin_count=0 before this call, throw an exception
-   * to report error.  (For testing purposes, we ask you to throw
-   * an exception named PageUnpinnedException in case of error.)
-   *
-   * @param PageId_in_a_DB page number in the minibase.
-   * @param dirty the dirty bit of the frame
-   */
-
     private int findAvailableFrame() {
         // checking for an empty frame
         for (int i = 0; i < numBuffers; i++) {
@@ -188,7 +224,19 @@ public class BufMgr implements GlobalConst{
 
         return -1; // no frame available
     }
-  
+
+    /**
+     * Unpin a page specified by a pageId.
+     * This method should be called with dirty==true if the client has
+     * modified the page.  If so, this call should set the dirty bit
+     * for this frame.  Further, if pin_count>0, this method should
+     * decrement it. If pin_count=0 before this call, throw an exception
+     * to report error.  (For testing purposes, we ask you to throw
+     * an exception named PageUnpinnedException in case of error.)
+     *
+     * @param PageId_in_a_DB page number in the minibase.
+     * @param dirty the dirty bit of the frame
+     */
   public void unpinPage(PageId PageId_in_a_DB, boolean dirty) throws ChainException {
       //YOUR CODE HERE
   }
