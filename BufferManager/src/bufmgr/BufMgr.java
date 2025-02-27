@@ -28,8 +28,11 @@ public class BufMgr implements GlobalConst{
 
     // Number of buffers (frames)
     private int numBuffers;
-  
+    private CustomHashTable pageTable;
+
+
     private DB db;
+
 
 
     // Frame Descriptor class - stores metadata about each frame
@@ -111,6 +114,8 @@ public class BufMgr implements GlobalConst{
     frameTable = new FrameDesc[numbufs];
     pageTable = new HashMap<>();
     fifoQueue = new LinkedList<>();
+    pageTable = new CustomHashTable();
+
 
     // Initialize frames
     for (int i = 0; i < numbufs; i++) {
@@ -251,9 +256,34 @@ public class BufMgr implements GlobalConst{
      * @param PageId_in_a_DB page number in the minibase.
      * @param dirty the dirty bit of the frame
      */
-  public void unpinPage(PageId PageId_in_a_DB, boolean dirty) throws ChainException {
-      //YOUR CODE HERE
-  }
+  public void unpinPage(PageId pageno, boolean dirty)
+            throws PageUnpinnedException, HashEntryNotFoundException {
+        int pagenum = pageno.pid;
+
+        // check if page exists in the buffer pool
+        if (pageTable.get(pagenum) == null) {
+            throw new HashEntryNotFoundException(null, "BUFMGR: Page not found in buffer pool.");
+        }
+
+        // get the frame index
+        int frameIndex = pageTable.get(pagenum);
+        FrameDesc fd = frameTable[frameIndex];
+
+        if (fd.pinCount == 0) {
+            throw new PageUnpinnedException(null, "BUFMGR: Cannot unpin a page that is not pinned.");
+        }
+
+        fd.pinCount--;
+
+        if (dirty) {
+            fd.dirty = true;
+        }
+
+        // if the page is now completely unpinned, add it back to the FIFO queue
+        if (fd.pinCount == 0) {
+            fifoQueue.add(frameIndex);
+        }
+    }
 
 
   /**
