@@ -92,6 +92,16 @@ public class BufMgr implements GlobalConst{
             }
             return null; // return null if page not found
         }
+
+        public boolean containsKey(int pageNumber) {
+            int index = pageNumber % HTSIZE; // Compute hash bucket index
+            for (HashEntry entry : directory[index]) {
+                if (entry.pageNumber == pageNumber) {
+                    return true; // Found the key
+                }
+            }
+            return false; // Key not found
+        }
     }
 
   /**
@@ -111,6 +121,7 @@ public class BufMgr implements GlobalConst{
     bufPool = new Page[numbufs];
     frameTable = new FrameDesc[numbufs];
     fifoQueue = new LinkedList<>();
+    db = new DB();
 
     // Initialize frames
     for (int i = 0; i < numbufs; i++) {
@@ -342,37 +353,38 @@ public class BufMgr implements GlobalConst{
    */
 
    public void flushPage(PageId pageid) {
-    if (!pageTable.containsKey(pageid.pid)) {
-        return;
-    }
-    int frameIndex = pageTable.get(pageid.pid);
-    if (frameTable[frameIndex].dirty) {
-        try {
-            SystemDefs.JavabaseDB.write_page(pageid, bufPool[frameIndex]);
-            frameTable[frameIndex].dirty = false;
-        } catch (InvalidPageNumberException | FileIOException | IOException e) {
-            System.err.println("Error writing page " + pageid.pid + " to disk: " + e.getMessage());
+        if (!pageTable.containsKey(pageid.pid)) {
+            return;
+        }
+
+        int frameIndex = pageTable.get(pageid.pid);
+        if (frameTable[frameIndex].dirty) {
+            try {
+                db.write_page(pageid, bufPool[frameIndex]);
+                frameTable[frameIndex].dirty = false;
+            } catch (InvalidPageNumberException | FileIOException | IOException e) {
+                System.err.println("Error writing page " + pageid.pid + " to disk: " + e.getMessage());
+            }
         }
     }
-  }
 
 
   /** Flushes all pages of the buffer pool to disk
    */
 
-   public void flushAllPages() {
-    for (int i = 0; i < numBuffers; i++) {
-      if (frameTable[i].dirty) {
-          try {
-              PageId pid = new PageId(frameTable[i].pageNumber);  // ✅ Create a valid PageId
-              SystemDefs.JavabaseDB.write_page(pid, bufPool[i]);  // ✅ Use correct PageId format
-              frameTable[i].dirty = false;
-          } catch (InvalidPageNumberException | FileIOException | IOException e) {
-              System.err.println("Error flushing page " + frameTable[i].pageNumber + " to disk: " + e.getMessage());
-          }
-      }
+    public void flushAllPages() {
+        for (int i = 0; i < numBuffers; i++) {
+            if (frameTable[i].dirty) {
+                try {
+                    PageId pid = new PageId(frameTable[i].pageNumber);
+                    db.write_page(pid, bufPool[i]);
+                    frameTable[i].dirty = false;
+                } catch (InvalidPageNumberException | FileIOException | IOException e) {
+                    System.err.println("Error flushing page " + frameTable[i].pageNumber + " to disk: " + e.getMessage());
+                }
+            }
+        }
     }
-  }
 
 
   /** Gets the total number of buffers.
@@ -380,9 +392,9 @@ public class BufMgr implements GlobalConst{
    * @return total number of buffer frames.
    */
 
-  public int getNumBuffers() {
-      return numBuffers;
-  }
+    public int getNumBuffers() {
+        return numBuffers;
+    }
 
 
   /** Gets the total number of unpinned buffer frames.
