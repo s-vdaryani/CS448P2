@@ -145,7 +145,7 @@ public class BufMgr implements GlobalConst{
    * this assignment.)
    *
    * @param pin_pgid page number in the minibase.
-   * @param page the pointer poit to the page.
+   * @param page the pointer point to the page.
    * @param emptyPage true (empty page); false (non-empty page)
    */
 
@@ -178,7 +178,7 @@ public class BufMgr implements GlobalConst{
             System.out.println("Buffer pool is full, no free frame available.");
             return;
         }
-        //System.out.println("Trrying #1");
+        //System.out.println("Trying #1");
         else if (frameTable[chosenFrame].pageNumber != -1) {
             // page number of -1 means
             System.out.println("entered here!!");
@@ -259,7 +259,7 @@ public class BufMgr implements GlobalConst{
      * to report error.  (For testing purposes, we ask you to throw
      * an exception named PageUnpinnedException in case of error.)
      *
-     * @param PageId_in_a_DB page number in the minibase.
+     * @param pageno page number in the minibase.
      * @param dirty the dirty bit of the frame
      */
   public void unpinPage(PageId pageno, boolean dirty)
@@ -360,7 +360,7 @@ public class BufMgr implements GlobalConst{
         int frameIndex = pageTable.get(pageid.pid);
         if (frameTable[frameIndex].dirty) {
             try {
-                db.write_page(pageid, bufPool[frameIndex]);
+                SystemDefs.JavabaseDB.write_page(pageid, bufPool[frameIndex]);
                 frameTable[frameIndex].dirty = false;
             } catch (InvalidPageNumberException | FileIOException | IOException e) {
                 System.err.println("Error writing page " + pageid.pid + " to disk: " + e.getMessage());
@@ -377,7 +377,7 @@ public class BufMgr implements GlobalConst{
             if (frameTable[i].dirty) {
                 try {
                     PageId pid = new PageId(frameTable[i].pageNumber);
-                    db.write_page(pid, bufPool[i]);
+                    SystemDefs.JavabaseDB.write_page(pid, bufPool[i]);
                     frameTable[i].dirty = false;
                 } catch (InvalidPageNumberException | FileIOException | IOException e) {
                     System.err.println("Error flushing page " + frameTable[i].pageNumber + " to disk: " + e.getMessage());
