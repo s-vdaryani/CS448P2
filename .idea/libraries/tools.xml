@@ -2,12 +2,17 @@
   <library name="tools">
     <CLASSES>
 <<<<<<< HEAD
+<<<<<<< HEAD
       <root url="jar://$PROJECT_DIR$/BufferManager/tools/javacc.jar!/" />
       <root url="jar://$PROJECT_DIR$/BufferManager/tools/retroguard.jar!/" />
 =======
       <root url="jar://$PROJECT_DIR$/BufferManager/tools/retroguard.jar!/" />
       <root url="jar://$PROJECT_DIR$/BufferManager/tools/javacc.jar!/" />
 >>>>>>> origin/main
+=======
+      <root url="jar://$PROJECT_DIR$/BufferManager/tools/javacc.jar!/" />
+      <root url="jar://$PROJECT_DIR$/BufferManager/tools/retroguard.jar!/" />
+>>>>>>> f8b4972110ab4b82d8d5407c7a50de5efc25a512
     </CLASSES>
     <JAVADOC />
     <SOURCES />
