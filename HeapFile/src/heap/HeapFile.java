@@ -14,7 +14,6 @@ import global.GlobalConst;
 import global.Page;
 import global.PageId;
 import global.RID;
-import global.SystemDefs;
 
 /**
  * <h3>Minibase Heap Files</h3>
