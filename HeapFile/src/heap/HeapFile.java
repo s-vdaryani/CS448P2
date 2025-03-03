@@ -63,7 +63,7 @@ public class HeapFile implements GlobalConst {
     firstPageId = Minibase.DiskManager.get_file_entry(name);
     if (firstPageId == null) {
         firstPageId = new PageId();
-        Minibase.DiskManager.allocate_page(firstPageId, 1);
+        Minibase.DiskManager.allocate_page();
         Minibase.DiskManager.add_file_entry(name, firstPageId);
 
         Page page = new Page();
@@ -79,11 +79,11 @@ public class HeapFile implements GlobalConst {
    * Called by the garbage collector when there are no more references to the
    * object; deletes the heap file if it's temporary.
    */
-  protected void finalize() throws Throwable {
+  /*protected void finalize() throws Throwable {
     if (fileName == null) {  // Deletes the heap file if it's temporary
       deleteFile();
     }
-  }
+  }*/
 
   /**
    * Deletes the heap file from the database, freeing all of its pages.
@@ -141,7 +141,7 @@ public class HeapFile implements GlobalConst {
    * @throws IllegalArgumentException if the record is too large
    */
   public RID insertRecord(byte[] record) {
-    if (record.length > HFPage.MAX_RECORD_SIZE) {
+    if (record.length > HFPage.SLOT_SIZE) {
         throw new IllegalArgumentException("Record too large to fit in a heap file page.");
     }
 
@@ -149,7 +149,7 @@ public class HeapFile implements GlobalConst {
 
     PageId targetPageId = null;
     Page targetPage = new Page();
-    HFPage hfPage;
+    HFPage hfPage = new HFPage();
 
     // Step 1: Find a page with free space
     if (!freePages.isEmpty()) {
@@ -189,15 +189,15 @@ public class HeapFile implements GlobalConst {
     if (targetPageId == null) {
         targetPageId = new PageId();
         try {
-            db.allocate_page(targetPageId);
-            db.read_page(targetPageId, targetPage);
+            SystemDefs.JavabaseDB.allocate_page(targetPageId);
+            SystemDefs.JavabaseDB.read_page(targetPageId, targetPage);
             hfPage = new HFPage(targetPage);
             hfPage.initDefaults();
             hfPage.setCurPage(targetPageId);
 
             // Link new page to the heap file
             hfPage.setNextPage(new PageId(-1)); // No next page yet
-        } catch (IOException | InvalidPageNumberException | DiskMgrException e) {
+        } catch (Exception e) {
             System.err.println("Error allocating new page: " + e.getMessage());
             return null;
         }
@@ -235,7 +235,7 @@ public class HeapFile implements GlobalConst {
 
     try {
         // Step 1: Read the page where the record is stored
-        db.read_page(rid.pageNo, targetPage);
+        db.read_page(rid.pageno, targetPage);
         hfPage = new HFPage(targetPage);
 
         // Step 2: Retrieve the record
@@ -261,7 +261,7 @@ public class HeapFile implements GlobalConst {
 
     try {
         // Step 1: Read the page where the record is stored
-        db.read_page(rid.pageNo, targetPage);
+        db.read_page(rid.pageno, targetPage);
         hfPage = new HFPage(targetPage);
 
         // Step 2: Convert `byte[]` to `Tuple`
@@ -271,7 +271,7 @@ public class HeapFile implements GlobalConst {
         hfPage.updateRecord(rid, newTuple);  //Now works!
 
         // Step 4: Write the updated page back to disk
-        db.write_page(rid.pageNo, targetPage);
+        db.write_page(rid.pageno, targetPage);
 
     } catch (IOException | FileIOException | InvalidPageNumberException e) {
         System.err.println("Error updating record: " + e.getMessage());
@@ -291,7 +291,7 @@ public class HeapFile implements GlobalConst {
 
     try {
         // Step 1: Read the page where the record is stored
-        db.read_page(rid.pageNo, targetPage);
+        db.read_page(rid.pageno, targetPage);
         hfPage = new HFPage(targetPage);
 
         // Step 2: Delete the record inside the page
@@ -299,11 +299,11 @@ public class HeapFile implements GlobalConst {
 
         // Step 3: Check if the page is empty
         if (hfPage.getSlotCount() == 0) {
-            freePages.add(rid.pageNo);  //Mark page as free
+            freePages.add(rid.pageno);  //Mark page as free
         }
 
         // Step 4: Write the updated page back to disk
-        db.write_page(rid.pageNo, targetPage);
+        db.write_page(rid.pageno, targetPage);
 
     } catch (IOException | FileIOException | InvalidPageNumberException e) {
         System.err.println("Error deleting record: " + e.getMessage());
