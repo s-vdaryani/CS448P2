@@ -3,6 +3,7 @@ package heap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.PriorityQueue;
+import java.util.Comparator;
 
 import diskmgr.DB;
 import diskmgr.DiskMgrException;
@@ -10,10 +11,7 @@ import diskmgr.FileEntryNotFoundException;
 import diskmgr.FileIOException;
 import diskmgr.InvalidPageNumberException;
 import diskmgr.InvalidRunSizeException;
-import global.GlobalConst;
-import global.Page;
-import global.PageId;
-import global.RID;
+import global.*;
 
 /**
  * <h3>Minibase Heap Files</h3>
@@ -33,6 +31,30 @@ public class HeapFile implements GlobalConst {
    * creates a new empty file. A null name produces a temporary heap file which
    * requires no DB entry.
    */
+
+    class SortByFreeSpace implements Comparator<PageId> {
+        public int compare(PageId a, PageId b) {
+            Page pageA = new Page();
+            Page pageB = new Page();
+
+            short freeA = 0, freeB = 0;
+            try {
+                Minibase.BufferManager.pinPage(a, pageA, false);
+                HFPage hfA = new HFPage(pageA);
+                freeA = hfA.getFreeSpace();
+                Minibase.BufferManager.unpinPage(a, false);
+
+                Minibase.BufferManager.pinPage(b, pageB, false);
+                HFPage hfB = new HFPage(pageB);
+                freeB = hfB.getFreeSpace();
+                Minibase.BufferManager.unpinPage(b, false);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return freeA - freeB;
+        }
+    }
   public HeapFile(String name) {
     fileName = name;
     recCount = 0;
