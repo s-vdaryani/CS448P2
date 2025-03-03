@@ -31,7 +31,6 @@ public class BufMgr implements GlobalConst{
 
 
     private DB db;
-    private CustomHashTable pageTable;
 
 
 
@@ -124,12 +123,7 @@ public class BufMgr implements GlobalConst{
     bufPool = new Page[numbufs];
     frameTable = new FrameDesc[numbufs];
     fifoQueue = new LinkedList<>();
-<<<<<<< HEAD
-    db = new DB();
-=======
     pageTable = new CustomHashTable();
-
->>>>>>> 82e9160017b13aeb3fc21ebffee68f584e26bae2
 
     // Initialize frames
     for (int i = 0; i < numbufs; i++) {
