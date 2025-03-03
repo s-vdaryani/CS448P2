@@ -1,8 +1,13 @@
 <component name="libraryTable">
   <library name="tools">
     <CLASSES>
+<<<<<<< HEAD
       <root url="jar://$PROJECT_DIR$/BufferManager/tools/javacc.jar!/" />
       <root url="jar://$PROJECT_DIR$/BufferManager/tools/retroguard.jar!/" />
+=======
+      <root url="jar://$PROJECT_DIR$/BufferManager/tools/retroguard.jar!/" />
+      <root url="jar://$PROJECT_DIR$/BufferManager/tools/javacc.jar!/" />
+>>>>>>> origin/main
     </CLASSES>
     <JAVADOC />
     <SOURCES />

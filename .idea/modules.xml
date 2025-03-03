@@ -3,8 +3,13 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/BufferManager/BufferManager.iml" filepath="$PROJECT_DIR$/BufferManager/BufferManager.iml" />
+<<<<<<< HEAD
       <module fileurl="file://$PROJECT_DIR$/HeapFile/HeapFile.iml" filepath="$PROJECT_DIR$/HeapFile/HeapFile.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/Spr2025-CS448-p2 2.iml" filepath="$PROJECT_DIR$/.idea/Spr2025-CS448-p2 2.iml" />
+=======
+      <module fileurl="file://$PROJECT_DIR$/.idea/CS448P2.iml" filepath="$PROJECT_DIR$/.idea/CS448P2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/HeapFile/HeapFile.iml" filepath="$PROJECT_DIR$/HeapFile/HeapFile.iml" />
+>>>>>>> origin/main
     </modules>
   </component>
 </project>
