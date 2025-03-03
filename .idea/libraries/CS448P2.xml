@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="CS448P2">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/P2-1-Buffer-Skeleton.zip!/" />
+      <root url="jar://$PROJECT_DIR$/P2-2-Heap-Skeleton.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

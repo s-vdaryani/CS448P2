@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/BufferManager/BufferManager.iml" filepath="$PROJECT_DIR$/BufferManager/BufferManager.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/CS448P2.iml" filepath="$PROJECT_DIR$/.idea/CS448P2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/HeapFile/HeapFile.iml" filepath="$PROJECT_DIR$/HeapFile/HeapFile.iml" />
+    </modules>
+  </component>
+</project>
