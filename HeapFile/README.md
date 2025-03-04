@@ -4,4 +4,4 @@ Team Members: Vani Daryani, Haley Klein, Pratik Bang
 
 Part 2 Contributors: Vani Daryani
 
-Notable Features: SortByFreeSpace class
+Key Additional Features: SortByFreeSpace class to define a custom sorting order for priority queue of pages
