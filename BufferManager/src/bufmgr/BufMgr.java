@@ -19,7 +19,6 @@ public class BufMgr implements GlobalConst{
     private FrameDesc[] frameTable;
 
     // HashMap to track which page is in which frame (PageId → Frame index)
-    // TODO: switch to CustomHashTable instead of built-in HashMap
     //private CustomHashTable pageTable;
 
     // Queue for FIFO (First-In-First-Out) page replacement
@@ -49,7 +48,7 @@ public class BufMgr implements GlobalConst{
     }
 
     private static class CustomHashTable {
-        private static final int HTSIZE = 97; // Number of buckets, size of hash table, TODO: change this value?
+        private static final int HTSIZE = 97; // Number of buckets, size of hash table
         private LinkedList<HashEntry>[] directory;
 
         // Hash table entry
@@ -71,7 +70,7 @@ public class BufMgr implements GlobalConst{
         }
 
         private int hash(int pageNumber) {
-            int a = 31, b = 17; // TODO: may need to change these?
+            int a = 31, b = 17;
             return Math.abs((a * pageNumber + b) % HTSIZE);
         }
 
@@ -176,7 +175,6 @@ public class BufMgr implements GlobalConst{
 
         if (chosenFrame == -1) {
             //throw new RuntimeException("Buffer pool is full, no free frame available.");
-            // TODO: fix error handling here
             System.out.println("Buffer pool is full, no free frame available.");
             return;
         }
@@ -320,7 +318,6 @@ public class BufMgr implements GlobalConst{
         return newPageID;
     }
     catch (Exception e) {
-        // TODO: FIX ERROR PROTOCOL HERE
         e.printStackTrace();
         throw new ChainException(e, "error in newPage");
     }
