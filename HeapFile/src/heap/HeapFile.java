@@ -11,18 +11,12 @@ import diskmgr.FileEntryNotFoundException;
 import diskmgr.FileIOException;
 import diskmgr.InvalidPageNumberException;
 import diskmgr.InvalidRunSizeException;
-<<<<<<< HEAD
-<<<<<<< HEAD
 import global.GlobalConst;
 import global.Page;
 import global.PageId;
 import global.RID;
-=======
 import global.*;
->>>>>>> origin/main
-=======
 import global.*;
->>>>>>> f8b4972110ab4b82d8d5407c7a50de5efc25a512
 
 /**
  * <h3>Minibase Heap Files</h3>
