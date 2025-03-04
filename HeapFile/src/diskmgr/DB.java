@@ -2,6 +2,8 @@
 
 package diskmgr;
 
+import java.io.*;
+
 import global.*;
 
 import java.io.File;
