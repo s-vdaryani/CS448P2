@@ -1,22 +1,9 @@
 package heap;
 
-import java.io.IOException;
+import global.*;
 import java.util.ArrayList;
-import java.util.PriorityQueue;
+import java.util.Collections;
 import java.util.Comparator;
-
-import diskmgr.DB;
-import diskmgr.DiskMgrException;
-import diskmgr.FileEntryNotFoundException;
-import diskmgr.FileIOException;
-import diskmgr.InvalidPageNumberException;
-import diskmgr.InvalidRunSizeException;
-import global.GlobalConst;
-import global.Page;
-import global.PageId;
-import global.RID;
-import global.*;
-import global.*;
 
 /**
  * <h3>Minibase Heap Files</h3>
@@ -27,332 +14,284 @@ import global.*;
  * is the most basic access method.
  */
 public class HeapFile implements GlobalConst {
-  private String fileName;
-  private PageId firstPageId;
-  private int recCount;
-  private PriorityQueue<PageId> freePages; // Tracks pages with free space
-/**
-   * If the given name already denotes a file, this opens it; otherwise, this
-   * creates a new empty file. A null name produces a temporary heap file which
-   * requires no DB entry.
-   */
+    protected ArrayList<PageId> pageList;     // List of all page IDs in this heap file
+    private ArrayList<Integer> pageIds;       // List of numeric page IDs for quick lookup
+    private int recordCount;                  // Total number of records in the heap file
+    private HFPage currentPage;               // Reference to the current page being accessed
+    private int status;                       // Status flag (0 = active, 1 = deleted)
+    private String fileName;                  // Name of the heap file on disk
 
-    class SortByFreeSpace implements Comparator<PageId> {
-        public int compare(PageId a, PageId b) {
-            Page pageA = new Page();
-            Page pageB = new Page();
+    /**
+     * Constructor for the HeapFile class.
+     * Creates a new heap file if it doesn't exist, or opens an existing one.
+     *
+     * @param fileName The name of the heap file to create or open
+     */
+    public HeapFile(String fileName) {
+        this.fileName = fileName;
+        this.status = 0;                      // Initialize as active
+        this.recordCount = 0;                 // Start with zero records
+        pageList = new ArrayList<>();         // Initialize page lists
+        pageIds = new ArrayList<>();
 
-            short freeA = 0, freeB = 0;
-            try {
-                Minibase.BufferManager.pinPage(a, pageA, false);
-                HFPage hfA = new HFPage(pageA);
-                freeA = hfA.getFreeSpace();
-                Minibase.BufferManager.unpinPage(a, false);
+        Page initialPage = new Page();        // Create a new buffer page
 
-                Minibase.BufferManager.pinPage(b, pageB, false);
-                HFPage hfB = new HFPage(pageB);
-                freeB = hfB.getFreeSpace();
-                Minibase.BufferManager.unpinPage(b, false);
-            } catch (Exception e) {
-                e.printStackTrace();
+        if (fileName != null) {
+            //try to get the first page ID for the file if it exists
+            PageId firstPageId = Minibase.DiskManager.get_file_entry(fileName);
+
+            if (firstPageId == null) {
+                //file doesn't exist, create a new file with one page
+                firstPageId = Minibase.BufferManager.newPage(initialPage, 1);
+                Minibase.DiskManager.add_file_entry(fileName, firstPageId);
+                Minibase.BufferManager.unpinPage(firstPageId, UNPIN_DIRTY);
+
+                // add the page to our tracking lists
+                pageList.add(firstPageId);
+                pageIds.add(firstPageId.pid);
+
+                //i/nitialize the first page as an HFPage
+                Minibase.BufferManager.pinPage(firstPageId, initialPage, PIN_DISKIO);
+                currentPage = new HFPage(initialPage);
+                currentPage.initDefaults();
+                currentPage.setCurPage(firstPageId);
+                Minibase.BufferManager.unpinPage(firstPageId, UNPIN_DIRTY);
+                return;
             }
 
-            return freeA - freeB;
-        }
-    }
-  public HeapFile(String name) {
-    fileName = name;
-    recCount = 0;
-    freePages = new PriorityQueue<>(new SortByFreeSpace());
+            // file exists --> load the first page
+            Minibase.BufferManager.pinPage(firstPageId, initialPage, PIN_DISKIO);
+            currentPage = new HFPage(initialPage);
+            currentPage.setCurPage(firstPageId);
+            currentPage.setData(initialPage.getData());
+            pageList.add(firstPageId);
+            pageIds.add(firstPageId.pid);
+            Minibase.BufferManager.unpinPage(firstPageId, UNPIN_CLEAN);
 
-    firstPageId = Minibase.DiskManager.get_file_entry(name);
-    if (firstPageId == null) {
-        firstPageId = new PageId();
-        Minibase.DiskManager.allocate_page();
-        Minibase.DiskManager.add_file_entry(name, firstPageId);
+            //count records in the first page
+            RID recordId;
+            for (recordId = currentPage.firstRecord(); recordId != null; recordId = currentPage.nextRecord(recordId)) {
+                recordCount++;
+            }
 
-        Page page = new Page();
-        Minibase.BufferManager.pinPage(firstPageId, page, true);
-        HFPage hfPage = new HFPage(page);
-        hfPage.initDefaults();
-        hfPage.setCurPage(firstPageId);
-        Minibase.BufferManager.unpinPage(firstPageId, true);
-    }
-  }
+            //load all subsequent pages in the file
+            PageId nextPage = currentPage.getNextPage();
+            while (nextPage.pid > 0) {
+                HFPage nextHeapPage = new HFPage();
+                Minibase.BufferManager.pinPage(nextPage, nextHeapPage, PIN_DISKIO);
+                pageList.add(nextPage);
+                pageIds.add(nextPage.pid);
 
-  /**
-   * Called by the garbage collector when there are no more references to the
-   * object; deletes the heap file if it's temporary.
-   */
-  /*protected void finalize() throws Throwable {
-    if (fileName == null) {  // Deletes the heap file if it's temporary
-      deleteFile();
-    }
-  }*/
+                //count records in this page
+                for (recordId = nextHeapPage.firstRecord(); recordId != null; recordId = nextHeapPage.nextRecord(recordId)) {
+                    recordCount++;
+                }
 
-  /**
-   * Deletes the heap file from the database, freeing all of its pages.
-   */
-  public void deleteFile() {
-    try {
-        DB db = new DB();
-
-        // Retrieve the first page of the file
-        PageId firstPageId = db.get_file_entry(fileName);
-        
-        if (firstPageId == null) {
-            System.err.println("File " + fileName + " not found in the database.");
+                Minibase.BufferManager.unpinPage(nextPage, UNPIN_CLEAN);
+                nextPage = nextHeapPage.getNextPage();
+            }
             return;
         }
 
-        // Free all pages in the heap file by traversing nextPage links
-        PageId currentPageId = new PageId(firstPageId.pid);
-        Page currentPage = new Page();
+        //handle case where fileName is null (temporary heap file)
+        PageId tempId = Minibase.DiskManager.get_file_entry(null);
+        currentPage = new HFPage(initialPage);
+        currentPage.setCurPage(tempId);
+        pageList.add(tempId);
+        pageIds.add(tempId.pid);
+        Minibase.BufferManager.unpinPage(tempId, UNPIN_DIRTY);
+    }
 
-        while (currentPageId.pid != -1) {
-            db.read_page(currentPageId, currentPage); // Read the current page
-            HFPage hfPage = new HFPage(currentPage);
-            PageId nextPageId = hfPage.getNextPage(); // Get next page before deallocating
+    /**
+     * TODO: what's the difference between deleteFile and finalize?
+     * Called by the garbage collector when there are no more references to the
+     * object; deletes the heap file if it's temporary.
+     */
+    protected void finalize() throws Throwable {
+        if (fileName == null) {
+            deleteFile();
+        }
+    }
 
-            try {
-                db.deallocate_page(currentPageId);
-            } catch (InvalidRunSizeException | InvalidPageNumberException | IOException | FileIOException | DiskMgrException e) {
-                System.err.println("Error deallocating page " + currentPageId.pid + ": " + e.getMessage());
+    /**
+     * Deletes the heap file from the database, freeing all of its pages.
+     */
+    public void deleteFile() {
+        if (status == 0) {  // Only delete if the file is still active
+            // Deallocate all pages in the file
+            for (PageId id : pageList) {
+                Minibase.DiskManager.deallocate_page(id);
             }
-
-            currentPageId = nextPageId; // Move to the next page
+            Minibase.DiskManager.delete_file_entry(fileName);
+            recordCount = 0;
+            status = 1;     // Mark as deleted
+            pageList = null;
+            pageIds = null;
         }
-
-        // Remove file entry from the database
-        try {
-            db.delete_file_entry(fileName);
-        } catch (FileEntryNotFoundException | IOException | FileIOException | InvalidPageNumberException | DiskMgrException e) {
-            System.err.println("Error deleting file entry for " + fileName + ": " + e.getMessage());
-        }
-
-        // Reset file metadata
-        recCount = 0;
-        freePages.clear(); // Clear free pages tracking
-
-    } catch (IOException | FileIOException | InvalidPageNumberException | DiskMgrException e) {
-        System.err.println("Unexpected error deleting file " + fileName + ": " + e.getMessage());
-    }
-  }
-
-
-  /**
-   * Inserts a new record into the file and returns its RID.
-   * 
-   * @throws IllegalArgumentException if the record is too large
-   */
-  public RID insertRecord(byte[] record) {
-    if (record.length > HFPage.SLOT_SIZE) {
-        throw new IllegalArgumentException("Record too large to fit in a heap file page.");
     }
 
-    DB db = new DB();
-
-    PageId targetPageId = null;
-    Page targetPage = new Page();
-    HFPage hfPage = new HFPage();
-
-    // Step 1: Find a page with free space
-    if (!freePages.isEmpty()) {
-        targetPageId = freePages.poll();  //Get a free page from tracking
-        try {
-            db.read_page(targetPageId, targetPage);
-            hfPage = new HFPage(targetPage);
-        } catch (IOException | FileIOException | InvalidPageNumberException e) {
-            System.err.println("Error reading free page: " + e.getMessage());
-            return null;
+    /**
+     * Inserts a new record into the file and returns its RID.
+     *
+     * @throws IllegalArgumentException if the record is too large
+     */
+    public RID insertRecord(byte[] record) throws Exception {
+        //check if the record is too large for a page
+        if (record.length + HFPage.HEADER_SIZE > 1024) {
+            throw new SpaceNotAvailableException("Record too large");
         }
-    } else {
-        // Step 2: Traverse the heap file if no free pages are tracked
-        PageId currentPageId = new PageId(firstPageId.pid);
-        Page currentPage = new Page();
 
-        while (currentPageId.pid != -1) {
-            try {
-                db.read_page(currentPageId, currentPage);
-                hfPage = new HFPage(currentPage);
-                
-                if (hfPage.getFreeSpace() >= record.length) {
-                    targetPageId = new PageId(currentPageId.pid);
-                    targetPage = currentPage;
-                    break;
+        //try to insert into the last page (which likely has the most free space)
+        Page diskPage = new Page();
+        PageId availablePage = pageList.get(pageList.size() - 1);
+        Minibase.BufferManager.pinPage(availablePage, diskPage, PIN_DISKIO);
+        HFPage heapPage = new HFPage(diskPage);
+        heapPage.setCurPage(availablePage);
+
+        //if there's enough space in the existing page, insert there
+        if (heapPage.getFreeSpace() > record.length) {
+            RID rid = heapPage.insertRecord(record);
+            recordCount++;
+            Minibase.BufferManager.unpinPage(availablePage, UNPIN_DIRTY);
+            return rid;
+        } else {
+            Minibase.BufferManager.unpinPage(availablePage, UNPIN_CLEAN);
+        }
+
+        //need to create a new page
+        Page newPage = new Page();
+        PageId newPageId = Minibase.BufferManager.newPage(newPage, 1);
+        HFPage newHeapPage = new HFPage(newPage);
+        newHeapPage.initDefaults();
+        newHeapPage.setCurPage(newPageId);
+
+        //link the new page to the current page
+        currentPage.setNextPage(newPageId);
+        newHeapPage.setPrevPage(currentPage.getCurPage());
+
+        //insert the record into the new page
+        RID newRid = newHeapPage.insertRecord(record);
+        pageList.add(newPageId);
+        pageIds.add(newPageId.pid);
+        currentPage = newHeapPage;
+        recordCount++;
+
+        Minibase.BufferManager.unpinPage(newPageId, UNPIN_DIRTY);
+
+        //sort pages by available space for efficient future insertions
+        Collections.sort(pageList, new PageSpaceComparator());
+        return newRid;
+    }
+
+    /**
+     * Reads a record from the file, given its id.
+     *
+     * @throws IllegalArgumentException if the rid is invalid
+     */
+    public Tuple getRecord(RID rid) throws Exception {
+        PageId pageId = rid.pageno;
+        // Check if the page exists in this heap file
+        if (!pageIds.contains(pageId.pid)) {
+            throw new IllegalArgumentException("Invalid RID");
+        }
+
+        //find the page and retrieve the record
+        for (PageId pid : pageList) {
+            if (pid.pid == pageId.pid) {
+                HFPage heapPage = new HFPage();
+                Minibase.BufferManager.pinPage(pageId, heapPage, false);
+                Minibase.BufferManager.unpinPage(pageId, false);
+                try {
+                    byte[] data = heapPage.selectRecord(rid);
+                    return new Tuple(data, 0, data.length);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid RID");
                 }
-
-                currentPageId = hfPage.getNextPage();  // Move to next page
-            } catch (IOException | FileIOException | InvalidPageNumberException e) {
-                System.err.println("Error reading heap page: " + e.getMessage());
-                return null;
             }
         }
+        throw new IllegalArgumentException("Invalid RID");
     }
 
-    // Step 3: Allocate a new page if no existing page has enough space
-    if (targetPageId == null) {
-        targetPageId = new PageId();
+    /**
+     * Updates the specified record in the heap file.
+     *
+     * @throws IllegalArgumentException if the rid or new record is invalid
+     */
+    public boolean updateRecord(RID rid, Tuple updatedRecord) throws Exception {
+        HFPage heapPage = new HFPage();
+        PageId pageId = rid.pageno;
+        Minibase.BufferManager.pinPage(pageId, heapPage, false);
         try {
-            SystemDefs.JavabaseDB.allocate_page(targetPageId);
-            SystemDefs.JavabaseDB.read_page(targetPageId, targetPage);
-            hfPage = new HFPage(targetPage);
-            hfPage.initDefaults();
-            hfPage.setCurPage(targetPageId);
-
-            // Link new page to the heap file
-            hfPage.setNextPage(new PageId(-1)); // No next page yet
-        } catch (Exception e) {
-            System.err.println("Error allocating new page: " + e.getMessage());
-            return null;
+            heapPage.updateRecord(rid, updatedRecord);
+            Minibase.BufferManager.unpinPage(pageId, false);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidUpdateException();
         }
+        return true;
     }
 
-    // Step 4: Insert record into the selected page
-    RID rid = hfPage.insertRecord(record);
-    if (hfPage.getFreeSpace() > 0) {
-        freePages.add(targetPageId);  // Track page in free space list
-    }
-
-    // Step 5: Write the page back to disk
-    try {
-        db.write_page(targetPageId, targetPage);
-    } catch (IOException | FileIOException | InvalidPageNumberException e) {
-        System.err.println("Error writing page after insert: " + e.getMessage());
-        return null;
-    }
-
-    // Step 6: Update metadata
-    recCount++;
-
-    return rid;
-  }
-
-  /**
-   * Reads a record from the file, given its id.
-   * 
-   * @throws IllegalArgumentException if the rid is invalid
-   */
-  public byte[] selectRecord(RID rid) {
-    DB db = new DB(); // Use DB instance to interact with disk
-    Page targetPage = new Page();
-    HFPage hfPage;
-
-    try {
-        // Step 1: Read the page where the record is stored
-        db.read_page(rid.pageno, targetPage);
-        hfPage = new HFPage(targetPage);
-
-        // Step 2: Retrieve the record
-        byte[] record = hfPage.selectRecord(rid);
-
-        return record; //Return the record data
-
-    } catch (IOException | FileIOException | InvalidPageNumberException e) {
-        System.err.println("Error selecting record: " + e.getMessage());
-        return null;
-    }
-  }
-
-  /**
-   * Updates the specified record in the heap file.
-   * 
-   * @throws IllegalArgumentException if the rid or new record is invalid
-   */
-  public void updateRecord(RID rid, byte[] newRecord) {
-    DB db = new DB(); //Use DB instance
-    Page targetPage = new Page();
-    HFPage hfPage;
-
-    try {
-        // Step 1: Read the page where the record is stored
-        db.read_page(rid.pageno, targetPage);
-        hfPage = new HFPage(targetPage);
-
-        // Step 2: Convert `byte[]` to `Tuple`
-        Tuple newTuple = new Tuple(newRecord, 0, newRecord.length);  //Convert byte[] to Tuple
-
-        // Step 3: Update the record inside the page
-        hfPage.updateRecord(rid, newTuple);  //Now works!
-
-        // Step 4: Write the updated page back to disk
-        db.write_page(rid.pageno, targetPage);
-
-    } catch (IOException | FileIOException | InvalidPageNumberException e) {
-        System.err.println("Error updating record: " + e.getMessage());
-    }
-  }
-
-
-  /**
-   * Deletes the specified record from the heap file.
-   * 
-   * @throws IllegalArgumentException if the rid is invalid
-   */
-  public void deleteRecord(RID rid) {
-    DB db = new DB(); //Use DB instance
-    Page targetPage = new Page();
-    HFPage hfPage;
-
-    try {
-        // Step 1: Read the page where the record is stored
-        db.read_page(rid.pageno, targetPage);
-        hfPage = new HFPage(targetPage);
-
-        // Step 2: Delete the record inside the page
-        hfPage.deleteRecord(rid);  //Remove the record
-
-        // Step 3: Check if the page is empty
-        if (hfPage.getSlotCount() == 0) {
-            freePages.add(rid.pageno);  //Mark page as free
+    /**
+     * Deletes the specified record from the heap file.
+     *
+     * @throws IllegalArgumentException if the rid is invalid
+     */
+    public boolean deleteRecord(RID rid) throws Exception {
+        HFPage heapPage = new HFPage();
+        PageId pageId = rid.pageno;
+        Minibase.BufferManager.pinPage(pageId, heapPage, false);
+        try {
+            heapPage.deleteRecord(rid);
+            Minibase.BufferManager.unpinPage(pageId, false);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid RID");
         }
-
-        // Step 4: Write the updated page back to disk
-        db.write_page(rid.pageno, targetPage);
-
-    } catch (IOException | FileIOException | InvalidPageNumberException e) {
-        System.err.println("Error deleting record: " + e.getMessage());
+        return true;
     }
-  }
 
-
-  /**
-   * Gets the number of records in the file.
-   */
-  public int getRecCnt() {
-    DB db = new DB(); //Use DB instance
-    int totalRecords = 0;
-    PageId currentPageId = new PageId(firstPageId.pid);
-    Page currentPage = new Page();
-
-    try {
-        while (currentPageId.pid != -1) {
-            db.read_page(currentPageId, currentPage);
-            HFPage hfPage = new HFPage(currentPage);
-
-            totalRecords += hfPage.getSlotCount(); //Sum up the number of records in the page
-
-            currentPageId = hfPage.getNextPage(); //Move to the next page
-        }
-    } catch (IOException | FileIOException | InvalidPageNumberException e) {
-        System.err.println("Error counting records: " + e.getMessage());
+    /**
+     * Gets the number of records in the file.
+     */
+    public int getRecCnt() {
+        return recordCount;
     }
-    return totalRecords;
-  }
 
+    /**
+     * Initiates a sequential scan of the heap file.
+     */
+    public HeapScan openScan() {
+        return new HeapScan(this);
+    }
 
-  /**
-   * Initiates a sequential scan of the heap file.
-   */
-  public HeapScan openScan() {
-    return new HeapScan(this);
-  }
+    /**
+     * Returns the name of the heap file.
+     */
+    public String toString() {
+        return this.fileName;
+    }
+}
 
-  /**
-   * Returns the name of the heap file.
-   */
-  public String toString() {
-    return this.fileName;
-  }
+/**
+ * Comparator class that sorts PageId objects based on their available free space.
+ * Pages are compared by pinning them and checking their free space,
+ * then unpinning them immediately afterward.
+ * Returns a positive value if the first page has more space than the second,
+ * negative if it has less, and zero if they have equal space.
+ */
+class PageSpaceComparator implements Comparator<PageId> {
 
-} // public class HeapFile implements GlobalConst
+    public int compare(PageId first, PageId second) {
+        short firstSpace;
+        HFPage firstPage = new HFPage();
+        Minibase.BufferManager.pinPage(first, firstPage, GlobalConst.PIN_DISKIO);
+        Minibase.BufferManager.unpinPage(first, GlobalConst.UNPIN_CLEAN);
+        firstSpace = firstPage.getFreeSpace();
+
+        short secondSpace;
+        HFPage secondPage = new HFPage();
+        Minibase.BufferManager.pinPage(second, secondPage, GlobalConst.PIN_DISKIO);
+        Minibase.BufferManager.unpinPage(second, GlobalConst.UNPIN_CLEAN);
+        secondSpace = secondPage.getFreeSpace();
+
+        return firstSpace - secondSpace;
+    }
+}
